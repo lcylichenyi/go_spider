@@ -96,8 +96,6 @@ func downloadImage(url, path string) error {
 		return errors.New("copy failed")
 	}
 
-	// fmt.Println("写入了", n, "个！！！")
-
 	return nil
 }
 
