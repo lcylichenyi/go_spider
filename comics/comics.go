@@ -24,7 +24,12 @@ const (
 var tokens = make(chan struct{}, 3)
 
 func main() {
-	resp := fetch(url)
+	var resp string
+	if len(os.Args) > 1 {
+		resp = fetch(os.Args[1])
+	} else {
+		resp = fetch(url)
+	}
 	if resp == "" {
 		os.Exit(1)
 	}
@@ -82,7 +87,7 @@ func downloadImage(url, path string) error {
 		return errors.New("http get error")
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != 200 && resp.StatusCode != 304 {
 		return errors.New("Http status code:" + string(resp.StatusCode))
 	}
 	f, err := os.Create(path)
@@ -144,19 +149,33 @@ func extractList(s string) []string {
 
 func extractImgList(s string) ([]string, string) {
 	// get title
-	titleRp := regexp.MustCompile(`var pageTitle = "(.*?)-.*?"`)
-	title := strings.Replace(titleRp.FindAllStringSubmatch(s, -1)[0][1], " ", "", -1)
+	titleRp := regexp.MustCompile(`var pageTitle = "(.*?)-`)
+
+	titleMatched := titleRp.FindAllStringSubmatch(s, -1)
+	if len(titleMatched) <= 0 {
+		panic("title matched failed")
+	}
+	title := strings.Replace(titleMatched[0][1], " ", "", -1)
 
 	// get imgpre from chapterPath
 	preRp := regexp.MustCompile(`var chapterPath = "(.*?)"`)
-	pre := preRp.FindAllStringSubmatch(s, -1)[0][1]
+	preMatched := preRp.FindAllStringSubmatch(s, -1)
+	if len(preMatched) <= 0 {
+		panic("chapterPath matched failed")
+	}
+	pre := preMatched[0][1]
 
 	// get imagelist from scripts
 	imgRp := regexp.MustCompile(`var chapterImages = \[(.*?)\]`)
 	// fmt.Println(imgRp.FindAllStringSubmatch(s, -1))
-	res := strings.Split(imgRp.FindAllStringSubmatch(s, -1)[0][1], ",")
+	imgMatched := imgRp.FindAllStringSubmatch(s, -1)
+	if len(imgMatched) <= 0 {
+		panic("imageLists matched failed")
+	}
+	res := strings.Split(imgMatched[0][1], ",")
 	for k, v := range res {
 		res[k] = imgHost + pre + strings.Trim(v, "\"")
+		res[k] = strings.Replace(res[k], "\\", "", -1)
 	}
 	title = format(title)
 
